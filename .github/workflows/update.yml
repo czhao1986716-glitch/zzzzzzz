@@ -1,0 +1,32 @@
+name: Auto Update ZZZZZZZ Data
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 北京时间每天早上 8 点
+  workflow_dispatch:      # 允许你随时手动点击运行
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests pandas
+
+      - name: Run Update Script
+        run: python update_monitor.py
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/*.json index.html
+          git commit -m "Auto-update data" || exit 0
+          git push
