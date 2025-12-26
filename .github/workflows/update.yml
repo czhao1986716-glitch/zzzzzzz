@@ -2,8 +2,8 @@ name: Auto Update ZZZZZZZ Data
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 北京时间每天早上 8 点
-  workflow_dispatch:      # 允许你随时手动点击运行
+    - cron: '0 16 * * *' # UTC 16:00 等于 北京时间 00:00
+  workflow_dispatch:
 
 jobs:
   update:
