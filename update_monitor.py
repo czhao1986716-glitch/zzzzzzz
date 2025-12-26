@@ -69,7 +69,6 @@ def main():
             for item in json.load(f):
                 yesterday_map[item['address']] = item['current_amount']
 
-    # --- 统计逻辑 ---
     # 顶部显示：当前余额大于 0 的地址数
     active_holders_count = len(today_df[today_df['current_amount'] > 0])
     
@@ -77,45 +76,35 @@ def main():
 
 def generate_modern_html(today_df, init_df, yesterday_map, history_map, time_label, active_count):
     table_rows = ""
-    # 列表显示所有持有过的地址，按持币量降序，余额为0的靠后
+    # 逻辑排序：按持币量降序
     today_df = today_df.sort_values(by="current_amount", ascending=False)
     
-    for index, row in enumerate(today_df.iterrows(), start=1):
-        _, data = row
-        addr = data['address']
-        curr_amt = data['current_amount']
+    for _, row in today_df.iterrows():
+        addr = row['address']
+        curr_amt = row['current_amount']
         
-        # 初始数据
         init_match = init_df[init_df['address'] == addr]
         i_amt = init_match['initial_amount'].values[0] if not init_match.empty else 0
-        
-        # 昨日对比
         y_amt = yesterday_map.get(addr, i_amt)
         diff = curr_amt - y_amt
-        
-        # 趋势数据
-        trend_list = history_map.get(addr, [curr_amt])
-        trend_str = ",".join(map(str, trend_list))
+        trend_str = ",".join(map(str, history_map.get(addr, [curr_amt])))
 
-        # 状态判定
         tag = "🏠 ORIGINAL" if i_amt > 0 else "✨ NEW"
         tag_cls = "tag-orig" if i_amt > 0 else "tag-new"
         
-        # 如果余额为 0，整行样式变淡
-        row_style = "opacity: 0.5; background: #fdfdfd;" if curr_amt == 0 else ""
-        amt_display = f"{curr_amt:,.0f}" if curr_amt > 0 else '<span style="color:#cbd5e1">SOLD OUT</span>'
+        row_style = "opacity: 0.6; background: #fafafa;" if curr_amt == 0 else ""
+        amt_display = f"{curr_amt:,.0f}" if curr_amt > 0 else '<span style="color:#94a3b8">SOLD OUT</span>'
         
         change_cls = "pos" if diff > 0 else ("neg" if diff < 0 else "neutral")
         change_icon = "+" if diff > 0 else ""
 
         table_rows += f"""
         <tr style="{row_style}">
-            <td class="num" style="text-align:center !important; color:#94a3b8;">{index}</td>
             <td class="addr-cell" title="{addr}">{addr[:8]}...{addr[-8:]}</td>
             <td><span class="tag {tag_cls}">{tag}</span></td>
             <td class="num">{i_amt:,.0f}</td>
             <td class="num">{y_amt:,.0f}</td>
-            <td class="num current"><strong>{amt_display}</strong></td>
+            <td class="num current" data-order="{curr_amt}"><strong>{amt_display}</strong></td>
             <td class="num {change_cls}" data-order="{diff}">{change_icon}{diff:,.0f}</td>
             <td class="chart-cell"><span class="sparkline">{trend_str}</span></td>
         </tr>
@@ -130,18 +119,15 @@ def generate_modern_html(today_df, init_df, yesterday_map, history_map, time_lab
         <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
         <style>
             :root {{ --bg: #f8fafc; --card: #ffffff; --primary: #1e293b; --accent: #3b82f6; --pos: #10b981; --neg: #ef4444; }}
-            body {{ background: var(--bg); font-family: -apple-system, sans-serif; color: var(--primary); margin: 0; padding: 20px; }}
-            .container {{ max-width: 1300px; margin: 0 auto; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
-            
-            .header-info {{ display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 1px solid #edf2f7; padding-bottom: 20px; }}
-            .stats-box {{ display: flex; gap: 50px; }}
+            body {{ background: var(--bg); font-family: -apple-system, system-ui, sans-serif; color: var(--primary); margin: 0; padding: 20px; }}
+            .container {{ max-width: 1200px; margin: 0 auto; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+            .header-info {{ display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; border-bottom: 1px solid #edf2f7; padding-bottom: 20px; }}
+            .stats-box {{ display: flex; gap: 40px; }}
             .stat-item {{ display: flex; flex-direction: column; }}
-            .stat-value {{ font-size: 28px; font-weight: 800; color: var(--accent); }}
-            .stat-label {{ font-size: 12px; color: #64748b; text-transform: uppercase; margin-top: 4px; font-weight: 600; }}
+            .stat-value {{ font-size: 26px; font-weight: 800; color: var(--accent); }}
+            .stat-label {{ font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 4px; font-weight: 600; }}
             .time-tag {{ font-size: 13px; color: #94a3b8; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; }}
-
-            table.dataTable {{ border: none !important; }}
-            table.dataTable thead th {{ background: #f8fafc; color: #64748b; font-size: 12px; padding: 15px; text-transform: uppercase; }}
+            table.dataTable thead th {{ background: #f8fafc; color: #64748b; font-size: 12px; padding: 15px; border: none !important; }}
             .addr-cell {{ font-family: monospace; color: var(--accent); font-size: 13px; }}
             .num {{ text-align: right !important; font-variant-numeric: tabular-nums; }}
             .tag {{ font-size: 10px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }}
@@ -155,21 +141,14 @@ def generate_modern_html(today_df, init_df, yesterday_map, history_map, time_lab
         <div class="container">
             <div class="header-info">
                 <div class="stats-box">
-                    <div class="stat-item">
-                        <span class="stat-value">ZZZZZZZ</span>
-                        <span class="stat-label">Project</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-value" style="color:var(--pos);">{active_count}</span>
-                        <span class="stat-label">Active Holders (余额 > 0)</span>
-                    </div>
+                    <div class="stat-item"><span class="stat-value">ZZZZZZZ</span><span class="stat-label">Project</span></div>
+                    <div class="stat-item"><span class="stat-value" style="color:var(--pos);">{active_count}</span><span class="stat-label">Active Holders</span></div>
                 </div>
-                <div class="time-tag">⏰ 最后更新 (北京时间): {time_label}</div>
+                <div class="time-tag">⏰ 更新 (北京时间): {time_label}</div>
             </div>
             <table id="holderTable" class="display" style="width:100%">
                 <thead>
                     <tr>
-                        <th style="text-align:center">#</th>
                         <th>持币地址</th>
                         <th>身份</th>
                         <th>初始数量</th>
@@ -187,7 +166,13 @@ def generate_modern_html(today_df, init_df, yesterday_map, history_map, time_lab
         <script src="https://cdn.jsdelivr.net/npm/jquery-sparkline@2.4.0/jquery.sparkline.min.js"></script>
         <script>
             $(document).ready(function() {{
-                $('#holderTable').DataTable({{ paging: false, scrollY: '70vh', scrollCollapse: true, order: [[0, 'asc']], language: {{ search: "搜索地址:" }} }});
+                $('#holderTable').DataTable({{ 
+                    paging: false, 
+                    scrollY: '75vh', 
+                    scrollCollapse: true, 
+                    order: [[4, 'desc']], // 默认按第 5 列（今日实时）降序排序
+                    language: {{ search: "搜索地址:" }} 
+                }});
                 $('.sparkline').sparkline('html', {{ type: 'line', width: '90px', height: '30px', lineColor: '#3b82f6', fillColor: '#dbeafe', lineWidth: 2, spotColor: false, minSpotColor: false, maxSpotColor: false }});
             }});
         </script>
